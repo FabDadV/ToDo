@@ -1,7 +1,10 @@
 package fdv.todo.ui;
 
+import android.arch.lifecycle.LiveData;
+import android.arch.lifecycle.Observer;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
@@ -69,7 +72,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
                         // (5.4) Call deleteTask in the taskDao with the task at that position
                         db.tasksDao().deleteTask(tasks.get(position));
                         // (5.6) Call retrieveTasks method to refresh the UI
-                        retrieveTasks();
+                        // (7.6) Remove the call to retrieveTasks:  retrieveTasks();
                     }
                 });
 
@@ -91,17 +94,23 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
         });
         // Initialize member variable for the data base
         db = TasksDB.getInstance(getApplicationContext());
+        // (7.7) Call retrieveTasks from here and remove the onResume method
+        retrieveTasks();
     }
     @Override
     public void onItemClickListener(int itemId) {
         Log.d(TAG,"Item: " + String.valueOf(itemId));
         // Launch AddTaskActivity adding the itemId as an extra in the intent
+            Intent intent = new Intent(MainActivity.this, AddTaskActivity.class);
+            intent.putExtra(AddTaskActivity.EXTRA_TASK_ID, itemId);
+            startActivity(intent);
     }
     /**
      * This method is called after this activity has been paused or restarted.
      * Often, this is after new data has been inserted through an AddTaskActivity,
      * so this re-queries the database data for any changes.
      */
+/*
     @Override
     protected void onResume() {
         super.onResume();
@@ -112,10 +121,27 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
         // (5.5) Extract the logic to a retrieveTasks method so it can be reused
         retrieveTasks();
     }
+*/
 /* Call the adapter's setTasks method using the result of the loadAllTasks method from the taskDao
         adapter.setTasks(db.tasksDao().loadAllTasks());
 */
+    private void retrieveTasks() {
+        Log.d(TAG, "Actively retrieving the tasks from the DataBase");
+        // (7.3) Fix compile issue by wrapping the return type with LiveData
+        LiveData<List<TaskEntity>> tasks = db.tasksDao().loadAllTasks();
+        // (7.5) Observe tasks and move the logic from runOnUiThread to onChanged
+        tasks.observe(this, new Observer<List<TaskEntity>>() {
+            @Override
+            public void onChanged(@Nullable List<TaskEntity> tasks) {
+                Log.d(TAG, "Receiving database update from LiveData");
+                adapter.setTasks(tasks);
+            }
+        });
+    }
+
+/*
     // (5.5) Define method retrieveTasks
+    // (7.4) Extract all this logic outside the Executor and remove the Executor
     private void retrieveTasks() {
         AppExecutors.getInstance().diskIO().execute(new Runnable() {
             @Override
@@ -132,4 +158,5 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
             }
         });
     }
+*/
 }
