@@ -1,15 +1,19 @@
 package fdv.todo.ui;
 
+import android.arch.lifecycle.LiveData;
+import android.arch.lifecycle.Observer;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.RadioGroup;
 
-import fdv.todo.AppExecutors;
 import fdv.todo.R;
+import fdv.todo.AppExecutors;
 import fdv.todo.data.db.TaskEntity;
 import fdv.todo.data.db.TasksDB;
 
@@ -52,6 +56,38 @@ public class AddTaskActivity extends AppCompatActivity {
             button.setText(R.string.update_button);
             if (taskId == DEFAULT_TASK_ID) {
                 // populate the UI
+                taskId = intent.getIntExtra(EXTRA_TASK_ID, DEFAULT_TASK_ID);
+
+                Log.d(TAG, "Actively retrieving a specific task from the DataBase");
+                // (8.2) Fix compile issue by wrapping the return type with LiveData
+                final LiveData<TaskEntity> task = db.tasksDao().loadTaskById(taskId);
+                // (8.4) Observe tasks and move the logic from runOnUiThread to onChanged
+                task.observe(this, new Observer<TaskEntity>() {
+                    @Override
+                    public void onChanged(@Nullable TaskEntity taskEntity) {
+                        // (8.5) Remove the observer as we do not need it any more
+                        task .removeObserver(this);
+                        Log.d(TAG, "Receiving database update from LiveData");
+                        populateUI(taskEntity);
+                    }
+                });
+/*
+// (8.3) Extract all this logic outside the Executor and remove the Executor
+                AppExecutors.getInstance().diskIO().execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        final TaskEntity task = db.tasksDao().loadTaskById(mTaskId);
+                        // We will be able to simplify this once we learn more
+                        // about Android Architecture Components
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                populateUI(tasks);
+                            }
+                        });
+                    }
+                });
+*/
             }
         }
     }
@@ -76,10 +112,15 @@ public class AddTaskActivity extends AppCompatActivity {
     }
     /**
      * populateUI would be called to populate the UI when in update mode
-     *
      * @param task the taskEntity to populate the UI
      */
-    private void populateUI(TaskEntity task) { }
+    private void populateUI(TaskEntity task) {
+        if (task == null) {
+            return;
+        }
+        editText.setText(task.getDescription());
+        setPriorityInViews(task.getPriority());
+    }
     /**
      * onSaveButtonClicked is called when the "save" button is clicked.
      * It retrieves user input and inserts that new task data into the underlying database.
@@ -93,14 +134,20 @@ public class AddTaskActivity extends AppCompatActivity {
         Date date = new Date();
         // Create taskEntity variable using the variables defined above
         // (4.4) Make taskEntry final so it is visible inside the run method
-        final TaskEntity taskEntity = new TaskEntity(description, priority, date);
+        final TaskEntity task = new TaskEntity(description, priority, date);
         // (4.2) Get the diskIO Executor from the instance of AppExecutors and
         // call the diskIO execute method with a new Runnable and implement its run method
         AppExecutors.getInstance().diskIO().execute(new Runnable() {
             @Override
             public void run() {
-                // (4.3) Move the remaining logic inside the run method
-                db.tasksDao().insertTask(taskEntity);
+                if (taskId == DEFAULT_TASK_ID) {
+                    // insert new task
+                    db.tasksDao().insertTask(task);
+                } else {
+                    //update task
+                    task.setId(taskId);
+                    db.tasksDao().updateTask(task);
+                }
                 finish();
             }
         });

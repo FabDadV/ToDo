@@ -2,6 +2,7 @@ package fdv.todo.ui;
 
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.Observer;
+import android.arch.lifecycle.ViewModelProviders;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -20,6 +21,7 @@ import fdv.todo.AppExecutors;
 import fdv.todo.R;
 import fdv.todo.data.db.TaskEntity;
 import fdv.todo.data.db.TasksDB;
+import fdv.todo.vm.MainViewModel;
 
 import static android.support.v7.widget.DividerItemDecoration.VERTICAL;
 
@@ -95,7 +97,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
         // Initialize member variable for the data base
         db = TasksDB.getInstance(getApplicationContext());
         // (7.7) Call retrieveTasks from here and remove the onResume method
-        retrieveTasks();
+        setupViewModel();
     }
     @Override
     public void onItemClickListener(int itemId) {
@@ -125,6 +127,22 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
 /* Call the adapter's setTasks method using the result of the loadAllTasks method from the taskDao
         adapter.setTasks(db.tasksDao().loadAllTasks());
 */
+    // Refactor to a more suitable name such as setupViewModel
+    private void setupViewModel() {
+        // (9.5) Remove the logging and the call to loadAllTasks, this is done in the ViewModel now
+        // (9.6) Declare a ViewModel variable and initialize it by calling ViewModelProviders.of
+        MainViewModel viewModel = ViewModelProviders.of(this).get(MainViewModel.class);
+        // (9.7) Observe the LiveData object in the ViewModel
+        viewModel.getTasks().observe(this, new Observer<List<TaskEntity>>() {
+            @Override
+            public void onChanged(@Nullable List<TaskEntity> tasks) {
+                Log.d(TAG, "Updating list of tasks from LiveData in ViewModel");
+                adapter.setTasks(tasks);
+            }
+        });
+    }
+// (9.8) This method is not retrieving the tasks any more.
+/*
     private void retrieveTasks() {
         Log.d(TAG, "Actively retrieving the tasks from the DataBase");
         // (7.3) Fix compile issue by wrapping the return type with LiveData
@@ -138,7 +156,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
             }
         });
     }
-
+*/
 /*
     // (5.5) Define method retrieveTasks
     // (7.4) Extract all this logic outside the Executor and remove the Executor
