@@ -20,4 +20,9 @@ public interface TasksDao {
     void updateTask(TaskEntity taskEntity);
     @Delete
     void deleteTask(TaskEntity taskEntity);
+
+    // (8.1) Wrap the return type with LiveData
+    @Query("SELECT * FROM tasks WHERE id = :id")
+    LiveData<TaskEntity> loadTaskById(int id);
+
 }
