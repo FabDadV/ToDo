@@ -2,6 +2,7 @@ package fdv.todo.ui;
 
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.Observer;
+import android.arch.lifecycle.ViewModelProviders;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -16,6 +17,8 @@ import fdv.todo.R;
 import fdv.todo.AppExecutors;
 import fdv.todo.data.db.TaskEntity;
 import fdv.todo.data.db.TasksDB;
+import fdv.todo.vm.AddTaskViewModel;
+import fdv.todo.vm.AddTaskViewModelFactory;
 
 import java.util.Date;
 
@@ -58,6 +61,22 @@ public class AddTaskActivity extends AppCompatActivity {
                 // populate the UI
                 taskId = intent.getIntExtra(EXTRA_TASK_ID, DEFAULT_TASK_ID);
 
+                // TODO (F.9) Remove the logging and the call to loadTaskById, this is done in the ViewModel now
+                // TODO (F.10) Declare a AddTaskViewModelFactory using mDb and mTaskId
+                AddTaskViewModelFactory factory = new AddTaskViewModelFactory(db, taskId);
+                // TODO (F.11) Declare a AddTaskViewModel variable and initialize it by calling
+                // ViewModelProviders.of for that use the factory created above AddTaskViewModel
+                final AddTaskViewModel viewModel = ViewModelProviders
+                        .of(this, factory).get(AddTaskViewModel.class);
+                // TODO (F.12) Observe the LiveData object in the ViewModel. Use it also when removing the observer
+                viewModel.getTask().observe(this, new Observer<TaskEntity>() {
+                    @Override
+                    public void onChanged(@Nullable TaskEntity task) {
+                        viewModel.getTask().removeObserver(this);
+                        populateUI(task);
+                    }
+                });
+/*
                 Log.d(TAG, "Actively retrieving a specific task from the DataBase");
                 // (8.2) Fix compile issue by wrapping the return type with LiveData
                 final LiveData<TaskEntity> task = db.tasksDao().loadTaskById(taskId);
@@ -71,6 +90,7 @@ public class AddTaskActivity extends AppCompatActivity {
                         populateUI(taskEntity);
                     }
                 });
+*/
 /*
 // (8.3) Extract all this logic outside the Executor and remove the Executor
                 AppExecutors.getInstance().diskIO().execute(new Runnable() {
